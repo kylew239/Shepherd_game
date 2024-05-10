@@ -19,8 +19,10 @@ class Environment:
                                                    FIELD_LENGTH+2*self.padding[1]))
         self.reset()
 
-        # Game Params
-        self.movespeed = 1.9
+        # Game params
+        # TODO: too slow for irl
+        self.dog_speed = D_Speed
+        self.sheep_speed = S_Speed
 
     def reset(self):
         """Reset the game by randomizing locations."""
@@ -33,15 +35,19 @@ class Environment:
         self.num_agents = np.random.randint(1, MAX_NUM_AGENTS+1)
         self.num_nearest = self.num_agents-1
 
-        # Randomly place the dog
-        self.dog = np.random.rand(2)*FIELD_LENGTH
+        # Randomly place the dog in the bottom left quarter
+        self.dog = np.random.rand(2)*FIELD_LENGTH/2
+        self.dog[1] += FIELD_LENGTH/2
 
-        # Place the target in the bottom right corner
-        self.target = np.array([FIELD_LENGTH-1, FIELD_LENGTH-1])
+        # Place the target in the bottom left corner
+        self.target = np.array([0, FIELD_LENGTH-1])
 
-        # Randomely place the sheep
-        self.sheep = R_S//2 + FIELD_LENGTH*.5 * \
-            np.random.rand(self.num_agents, 2)
+        # Randomely place the sheep in the top right quarter
+        self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH/2
+        self.sheep[:, 0] += FIELD_LENGTH/2
+
+        # Heading arrays for sheep movement
+        self.heading = np.zeros_like(self.sheep)
 
         # Record positions
         self.pos.append([self.dog, *self.sheep])
@@ -53,53 +59,60 @@ class Environment:
         Args:
             direction (List): Movement direction of the dog
         """
+        next_heading = np.zeros_like(self.heading)
+
         # Add direction to the coordinates
         self.dog += np.array(direction)
 
-        # For each sheep, calculate distance to all the other sheep
-        distances = [[dist(self.sheep[i], self.sheep[j]) if i < j else 0 for j in range(self.num_agents)]
-                     for i in range(self.num_agents)]
+        # Iterate through each sheep to calculate movement
+        for i, sheep in enumerate(self.sheep):
+            # if sheep is far from dog, graze with a small chance of movement
+            if dist(sheep, self.dog) > R_S:
+                # Random chance of moving in any direction
+                if np.random.rand() < GRAZE:
+                    sheep += rand_unit()
 
-        # Update movement for each sheep
-        for i in range(self.num_agents):
-            # local repulsion
-            v_sheep_ = [unit_vect(self.sheep[i], self.sheep[j]) for j in range(self.num_agents)
-                        if i != j and distances[min(i, j)][max(i, j)] < R_A]
-
-            # if two agents in same location, unit_vect returns zero; need to map to random unit vector
-            for v_index in range(len(v_sheep_)):
-                if (v_sheep_[v_index] == 0).all():
-                    v_sheep_[v_index] = rand_unit()
-            v_sheep = 0 if len(v_sheep_) == 0 else unit_vect(
-                reduce(np.add, v_sheep_))
-
-            if (dist(self.dog, self.sheep[i]) < R_S):
-                # agent outside of dog detection radius, only consider local repulsion
-                # self.sheep[i] += unit_vect(v_sheep)
-                # TODO: Doesn't do anything?
-                pass
+            # if sheep is close to dog, calculate movement
             else:
-                # attracted to local center of mass of nearest agents (ignore self at index 0)
-                v_COM = 0
-                if self.num_nearest > 0:
-                    # sort based on distance
-                    sorted_agents = sorted(
-                        self.sheep, key=lambda x: dist(self.sheep[i], x))
+                # repulsion direction away from shepherd
+                dog_repul = unit_vect(sheep, self.dog)
 
-                    # ignore self at index 0
-                    nearest_agents = sorted_agents[1:self.num_nearest+1]
-                    com = reduce(np.add, nearest_agents)/self.num_nearest
-                    v_COM = unit_vect(com, self.sheep[i])
+                # calculate LCM by sorting sheep based on distance
+                nearest_sheep = sorted(
+                    self.sheep, key=lambda x: dist(sheep, x))[1:]
+                LCM = np.mean(nearest_sheep[:self.num_nearest+1], axis=0)
 
-                # repelled from dog (if in same location, run towards center of board)
-                v_s = unit_vect(self.sheep[i], self.dog)
-                if (v_s == 0).all():
-                    v_s = unit_vect(
-                        np.array([FIELD_LENGTH/2, FIELD_LENGTH/2]), self.sheep[i])
+                # attraction to LCM
+                lcm_attract = unit_vect(LCM, sheep)
 
-                self.sheep[i] = self.sheep[i] + \
-                    unit_vect(P_A*v_sheep + P_C*v_COM + P_S*v_s)
+                # Filter sheep that are within a certain distance
+                neighbor_sheep = []
+                for neighbor in nearest_sheep:
+                    if dist(sheep, neighbor) <= R_A:
+                        neighbor_sheep.append(neighbor)
+                    else:
+                        break
 
+                # Calculate local repulsion
+                local_repul = np.zeros(2)
+                for neighbor in neighbor_sheep:
+                    local_repul += unit_vect(sheep, neighbor)
+                local_repul = unit_vect(local_repul)
+
+                # Calculate heading agent using local attractions
+                next_heading[i] = P_C*lcm_attract + \
+                    P_A*local_repul + P_S*dog_repul
+
+        # Update heading to include previous headings
+        next_heading = next_heading + P_H*self.heading
+
+        # Update sheep location
+        self.sheep += self.sheep_speed*next_heading
+
+        # Update heading for next iteration
+        self.heading = next_heading
+
+        # TODO: Not in strombom
         if CLIP:
             # Clip the locations to within the field
             self.dog = self.dog.clip(0, FIELD_LENGTH-1)
@@ -122,13 +135,13 @@ class Environment:
 
         # Movement
         if keys[pygame.K_RIGHT]:
-            x += self.movespeed
+            x += self.dog_speed
         if keys[pygame.K_DOWN]:
-            y += self.movespeed
+            y += self.dog_speed
         if keys[pygame.K_LEFT]:
-            x -= self.movespeed
+            x -= self.dog_speed
         if keys[pygame.K_UP]:
-            y -= self.movespeed
+            y -= self.dog_speed
 
         # Reset
         if keys[pygame.K_r]:
@@ -141,15 +154,30 @@ class Environment:
 
     def render(self):
         """Render the game window."""
-        self.screen.fill((19, 133, 16))
+        self.screen.fill((181, 179, 172))
+        pygame.draw.rect(self.screen,
+                         (19, 133, 16),
+                         (self.padding[0], self.padding[1], FIELD_LENGTH, FIELD_LENGTH))
 
-        # Dog
-        pygame.draw.circle(self.screen, (255, 0, 0), tuple(
-            self.padding + self.dog), 3, 0)
+        # Target Radius
+        pygame.draw.circle(self.screen, (0, 0, 0), tuple(
+            self.padding + self.target), TARGET_RADIUS, 4)
+
+        # Borders
+        pygame.draw.rect(self.screen,
+                         (181, 179, 172),
+                         (0, FIELD_LENGTH, self.padding[0], self.padding[1]*2))
+        pygame.draw.rect(self.screen,
+                         (181, 179, 172),
+                         (0, FIELD_LENGTH+self.padding[1], self.padding[0]*2, self.padding[1]))
 
         # Goal
         pygame.draw.circle(self.screen, (0, 0, 0),
                            tuple(self.padding + self.target), 3, 0)
+
+        # Dog
+        pygame.draw.circle(self.screen, (25, 25, 255), tuple(
+            self.padding + self.dog), 3, 0)
 
         # Sheep
         [pygame.draw.circle(self.screen, (255, 255, 255), tuple(self.padding + a), 3, 0)

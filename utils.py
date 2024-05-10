@@ -30,6 +30,6 @@ def unit_vect(head, tail=np.array([0, 0])):
         return np.array([0, 0])
     return (head-tail)/dist(head, tail)
 
-def rand_unit(self):
+def rand_unit():
     """Return a random unit vector."""
     return unit_vect([np.random.rand()-.5, np.random.rand()-.5])
