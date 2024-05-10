@@ -4,6 +4,7 @@ from parameters import *
 from functools import reduce
 import time
 import csv
+from utils import *
 
 FPS = 60
 fpsClock = pygame.time.Clock()
@@ -56,25 +57,25 @@ class Environment:
         self.dog += np.array(direction)
 
         # For each sheep, calculate distance to all the other sheep
-        distances = [[self.dist(self.sheep[i], self.sheep[j]) if i < j else 0 for j in range(self.num_agents)]
+        distances = [[dist(self.sheep[i], self.sheep[j]) if i < j else 0 for j in range(self.num_agents)]
                      for i in range(self.num_agents)]
 
         # Update movement for each sheep
         for i in range(self.num_agents):
             # local repulsion
-            v_sheep_ = [self.unit_vect(self.sheep[i], self.sheep[j]) for j in range(self.num_agents)
+            v_sheep_ = [unit_vect(self.sheep[i], self.sheep[j]) for j in range(self.num_agents)
                         if i != j and distances[min(i, j)][max(i, j)] < R_A]
 
             # if two agents in same location, unit_vect returns zero; need to map to random unit vector
             for v_index in range(len(v_sheep_)):
                 if (v_sheep_[v_index] == 0).all():
-                    v_sheep_[v_index] = self.rand_unit()
-            v_sheep = 0 if len(v_sheep_) == 0 else self.unit_vect(
+                    v_sheep_[v_index] = rand_unit()
+            v_sheep = 0 if len(v_sheep_) == 0 else unit_vect(
                 reduce(np.add, v_sheep_))
 
-            if (self.dist(self.dog, self.sheep[i]) > R_S):
+            if (dist(self.dog, self.sheep[i]) < R_S):
                 # agent outside of dog detection radius, only consider local repulsion
-                # self.sheep[i] += self.unit_vect(v_sheep)
+                # self.sheep[i] += unit_vect(v_sheep)
                 # TODO: Doesn't do anything?
                 pass
             else:
@@ -83,21 +84,21 @@ class Environment:
                 if self.num_nearest > 0:
                     # sort based on distance
                     sorted_agents = sorted(
-                        self.sheep, key=lambda x: self.dist(self.sheep[i], x))
+                        self.sheep, key=lambda x: dist(self.sheep[i], x))
 
                     # ignore self at index 0
                     nearest_agents = sorted_agents[1:self.num_nearest+1]
                     com = reduce(np.add, nearest_agents)/self.num_nearest
-                    v_COM = self.unit_vect(com, self.sheep[i])
+                    v_COM = unit_vect(com, self.sheep[i])
 
                 # repelled from dog (if in same location, run towards center of board)
-                v_s = self.unit_vect(self.sheep[i], self.dog)
+                v_s = unit_vect(self.sheep[i], self.dog)
                 if (v_s == 0).all():
-                    v_s = self.unit_vect(
+                    v_s = unit_vect(
                         np.array([FIELD_LENGTH/2, FIELD_LENGTH/2]), self.sheep[i])
 
                 self.sheep[i] = self.sheep[i] + \
-                    self.unit_vect(P_A*v_sheep + P_C*v_COM + P_S*v_s)
+                    unit_vect(P_A*v_sheep + P_C*v_COM + P_S*v_s)
 
         if CLIP:
             # Clip the locations to within the field
@@ -108,43 +109,11 @@ class Environment:
         self.pos.append([self.dog, *self.sheep])
 
         # End game if all sheep are within the target
-        max_agent_dist = max([self.dist(a, self.target) for a in self.sheep])
+        max_agent_dist = max([dist(a, self.target) for a in self.sheep])
         if max_agent_dist < TARGET_RADIUS:
             return True
 
         return False
-
-    def dist(self, a, b=np.array([0, 0])):
-        """
-        Calculate the distance between two points.
-
-        Args:
-            a (List): Point 1
-            b (List, optional): Point 2. Defaults to np.array([0, 0]).
-
-        Returns:
-            float: Distance between the two points
-        """
-        return np.linalg.norm(a-b)
-
-    def unit_vect(self, head, tail=np.array([0, 0])):
-        """
-        Create a unit vector.
-
-        Args:
-            head (List): Head of the vector
-            tail (List, optional): Tail of the vector. Defaults to np.array([0, 0]).
-
-        Returns:
-            List: Unit Vector
-        """
-        if self.dist(head, tail) == 0:
-            return np.array([0, 0])
-        return (head-tail)/self.dist(head, tail)
-
-    def rand_unit(self):
-        """Return a random unit vector."""
-        return self.unit_vect([np.random.rand()-.5, np.random.rand()-.5])
 
     def get_key_input(self):
         """Get key inputs for game controls."""
@@ -236,7 +205,7 @@ class Environment:
 
             # Reset game on reaching goal
             if ended:
-                self.save()
+                # self.save() # TODO: Uncomment
                 self.reset()
 
             # Update the game clock
