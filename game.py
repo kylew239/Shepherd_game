@@ -9,12 +9,12 @@ from utils import *
 FPS = 60
 fpsClock = pygame.time.Clock()
 
-
 class Environment:
     def __init__(self):
         self.padding = np.array([30, 30])
         if RENDER:
             pygame.init()
+            self.joystick = pygame.joystick.Joystick(0)
             self.screen = pygame.display.set_mode((FIELD_LENGTH+2*self.padding[0],
                                                    FIELD_LENGTH+2*self.padding[1]))
         self.reset()
@@ -62,6 +62,7 @@ class Environment:
         next_heading = np.zeros_like(self.heading)
 
         # Add direction to the coordinates
+        # TODO: Turn into unit or smaller?
         self.dog += np.array(direction)
 
         # Iterate through each sheep to calculate movement
@@ -129,18 +130,23 @@ class Environment:
 
     def get_key_input(self):
         """Get key inputs for game controls."""
-        x, y = 0, 0
+        # x, y = 0, 0
         keys = pygame.key.get_pressed()
 
-        # Movement
-        if keys[pygame.K_RIGHT]:
-            x += self.dog_speed
-        if keys[pygame.K_DOWN]:
-            y += self.dog_speed
-        if keys[pygame.K_LEFT]:
-            x -= self.dog_speed
-        if keys[pygame.K_UP]:
-            y -= self.dog_speed
+        # # Movement
+        # if keys[pygame.K_RIGHT]:
+        #     x += self.dog_speed
+        # if keys[pygame.K_DOWN]:
+        #     y += self.dog_speed
+        # if keys[pygame.K_LEFT]:
+        #     x -= self.dog_speed
+        # if keys[pygame.K_UP]:
+        #     y -= self.dog_speed
+
+        # Get joystick movements
+        pygame.event.get()
+        x = self.joystick.get_axis(3)
+        y = self.joystick.get_axis(4)
 
         # Reset
         if keys[pygame.K_r]:
