@@ -121,9 +121,8 @@ class Environment:
         # Record positions
         self.pos.append([self.dog, *self.sheep])
 
-        # End game if all sheep are within the target
-        max_agent_dist = max([dist(a, self.target) for a in self.sheep])
-        if max_agent_dist < TARGET_RADIUS:
+        # End game if CoM of sheep is within the target
+        if dist(np.mean(self.sheep, axis=0), self.target) < TARGET_RADIUS:
             return True
 
         return False
