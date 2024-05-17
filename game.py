@@ -1,22 +1,23 @@
 import pygame
+from pygame.locals  import *
 import numpy as np
 from parameters import *
-from functools import reduce
 import time
 import csv
 from utils import *
 
-FPS = 60
+FPS = 20
 fpsClock = pygame.time.Clock()
 
-class Environment:
+class Game:
     def __init__(self):
-        self.padding = np.array([30, 30])
+        self.padding = np.array([40, 40])
+        # self.joystick = pygame.joystick.Joystick(0)
         if RENDER:
             pygame.init()
-            self.joystick = pygame.joystick.Joystick(0)
             self.screen = pygame.display.set_mode((FIELD_LENGTH+2*self.padding[0],
-                                                   FIELD_LENGTH+2*self.padding[1]))
+                                                   FIELD_LENGTH+2*self.padding[1]), SCALED)
+
         self.reset()
 
         # Game params
@@ -113,7 +114,6 @@ class Environment:
         # Update heading for next iteration
         self.heading = next_heading
 
-        # TODO: Not in strombom
         if CLIP:
             # Clip the locations to within the field
             self.dog = self.dog.clip(0, FIELD_LENGTH-1)
@@ -130,23 +130,23 @@ class Environment:
 
     def get_key_input(self):
         """Get key inputs for game controls."""
-        # x, y = 0, 0
+        x, y = 0, 0
         keys = pygame.key.get_pressed()
 
         # # Movement
-        # if keys[pygame.K_RIGHT]:
-        #     x += self.dog_speed
-        # if keys[pygame.K_DOWN]:
-        #     y += self.dog_speed
-        # if keys[pygame.K_LEFT]:
-        #     x -= self.dog_speed
-        # if keys[pygame.K_UP]:
-        #     y -= self.dog_speed
+        if keys[pygame.K_RIGHT]:
+            x += self.dog_speed
+        if keys[pygame.K_DOWN]:
+            y += self.dog_speed
+        if keys[pygame.K_LEFT]:
+            x -= self.dog_speed
+        if keys[pygame.K_UP]:
+            y -= self.dog_speed
 
         # Get joystick movements
-        pygame.event.get()
-        x = self.joystick.get_axis(3)
-        y = self.joystick.get_axis(4)
+        # pygame.event.get()
+        # x = self.joystick.get_axis(3)
+        # y = self.joystick.get_axis(4)
 
         # Reset
         if keys[pygame.K_r]:
@@ -183,6 +183,7 @@ class Environment:
         # Dog
         pygame.draw.circle(self.screen, (25, 25, 255), tuple(
             self.padding + self.dog), 3, 0)
+
 
         # Sheep
         [pygame.draw.circle(self.screen, (255, 255, 255), tuple(self.padding + a), 3, 0)
@@ -246,4 +247,4 @@ class Environment:
 
 
 if __name__ == "__main__":
-    Environment().run()
+    Game().run()
