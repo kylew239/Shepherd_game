@@ -1,3 +1,9 @@
+# TODO:
+# - Look into making the game online, either local host, github pages, or aws server. This will make it easier for people to play and for me to get data
+# - Look into adding difficulty in terrain, things like walls/obstacles
+# - Run some diffusion policy examples
+
+
 import pygame
 from pygame.locals  import *
 import numpy as np
@@ -20,17 +26,16 @@ class Game:
 
         self.reset()
 
-        # Game params
-        # TODO: too slow for irl
-        self.dog_speed = D_Speed
-        self.sheep_speed = S_Speed
-
     def reset(self):
         """Reset the game by randomizing locations."""
         # Score and data tracking
         self.pos = []
         self.start_time = time.time()
         self.trav = []
+
+        # Time display
+        self.font = pygame.font.SysFont('Consolas', 20, True)
+        self.start_time = pygame.time.get_ticks()
 
         # TODO: Generates a random number of agents
         self.num_agents = np.random.randint(1, MAX_NUM_AGENTS+1)
@@ -46,6 +51,7 @@ class Game:
         # Randomely place the sheep in the top right quarter
         self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH/2
         self.sheep[:, 0] += FIELD_LENGTH/2
+        self.CoM = np.mean(self.sheep, axis=0)
 
         # Heading arrays for sheep movement
         self.heading = np.zeros_like(self.sheep)
@@ -109,7 +115,7 @@ class Game:
         next_heading = next_heading + P_H*self.heading
 
         # Update sheep location
-        self.sheep += self.sheep_speed*next_heading
+        self.sheep += S_Speed*next_heading
 
         # Update heading for next iteration
         self.heading = next_heading
@@ -123,7 +129,8 @@ class Game:
         self.pos.append([self.dog, *self.sheep])
 
         # End game if CoM of sheep is within the target
-        if dist(np.mean(self.sheep, axis=0), self.target) < TARGET_RADIUS:
+        self.CoM = np.mean(self.sheep, axis=0)
+        if dist(self.CoM, self.target) < TARGET_RADIUS:
             return True
 
         return False
@@ -135,13 +142,13 @@ class Game:
 
         # # Movement
         if keys[pygame.K_RIGHT]:
-            x += self.dog_speed
+            x += D_Speed
         if keys[pygame.K_DOWN]:
-            y += self.dog_speed
+            y += D_Speed
         if keys[pygame.K_LEFT]:
-            x -= self.dog_speed
+            x -= D_Speed
         if keys[pygame.K_UP]:
-            y -= self.dog_speed
+            y -= D_Speed
 
         # Get joystick movements
         # pygame.event.get()
@@ -159,22 +166,11 @@ class Game:
 
     def render(self):
         """Render the game window."""
-        self.screen.fill((181, 179, 172))
-        pygame.draw.rect(self.screen,
-                         (19, 133, 16),
-                         (self.padding[0], self.padding[1], FIELD_LENGTH, FIELD_LENGTH))
+        self.screen.fill((19, 133, 16))
 
         # Target Radius
         pygame.draw.circle(self.screen, (0, 0, 0), tuple(
             self.padding + self.target), TARGET_RADIUS, 4)
-
-        # Borders
-        pygame.draw.rect(self.screen,
-                         (181, 179, 172),
-                         (0, FIELD_LENGTH, self.padding[0], self.padding[1]*2))
-        pygame.draw.rect(self.screen,
-                         (181, 179, 172),
-                         (0, FIELD_LENGTH+self.padding[1], self.padding[0]*2, self.padding[1]))
 
         # Goal
         pygame.draw.circle(self.screen, (0, 0, 0),
@@ -184,10 +180,16 @@ class Game:
         pygame.draw.circle(self.screen, (25, 25, 255), tuple(
             self.padding + self.dog), 3, 0)
 
-
         # Sheep
         [pygame.draw.circle(self.screen, (255, 255, 255), tuple(self.padding + a), 3, 0)
             for a in self.sheep]
+        pygame.draw.circle(self.screen, (0, 0, 0), tuple(self.padding + self.CoM), 4, 0)
+        pygame.draw.circle(self.screen, (200, 200, 200), tuple(self.padding + self.CoM), 2, 0)
+        
+        # Time
+        time_passed = (pygame.time.get_ticks() - self.start_time)/1000
+        message = 'Seconds: ' + str(time_passed)
+        self.screen.blit(self.font.render(message, True, (0,0,0)), (0,0))
 
         # Update display
         pygame.display.update()
