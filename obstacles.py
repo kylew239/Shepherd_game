@@ -12,10 +12,10 @@ class Circle:
     radius: float
 
 lines: List[Line] = [
-    Line(start=[20, 20], end=[70, 40]),
-    Line(start=[30, 120], end=[100, 120]),
+    # Line(start=[20, 20], end=[70, 40]),
+    # Line(start=[30, 120], end=[100, 120]),
 ]
 
 circles: List[Circle] = [
-    Circle(center=(60, 60), radius=10),
+    # Circle(center=(60, 60), radius=10),
 ]

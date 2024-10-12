@@ -16,12 +16,12 @@ TARGET_RADIUS = 15              # distance from target to trigger win condition
 
 ### Agent Parameters
 MAX_NUM_AGENTS = 10             # number of agents [0, MAX_NUM_AGENTS]
-R_S = 30                        # shepherd detection distance
+R_S = 20                        # shepherd detection distance
 R_A = 10                        # agent repulsion distance
 # P_A > P_C > P_S (eliminate inertial term for discrete setting)
 
 P_A = 2                         # agent repulsion weight
-P_C = 1.                      # LCM attraction weight
+P_C = 1.                        # LCM attraction weight
 P_S = 1                         # shepherd repulsion weight
 P_H = 0.6                       # Heading weight
 E = 0.3                         # relative strength of angular noise

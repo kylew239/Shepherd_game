@@ -1,5 +1,8 @@
+# TODO: make sure sheep don't spawn in obstacles?
 import csv
+import glob
 import math
+import os
 import time
 from typing import Optional
 
@@ -18,30 +21,64 @@ BLACK = (0, 0, 0)
 
 
 class Game:
-    def __init__(self):
+    def __init__(self,
+                 save_dir: str = '',
+                 display_time: bool = False):
+        pygame.init()
         self.padding = np.array([40, 40])
-        # self.joystick = pygame.joystick.Joystick(0)
+
+        # Try to get the joystick, use keyboard if error
+        try:
+            self.joystick = pygame.joystick.Joystick(0)
+            self.get_input = self.get_joy_input
+        except pygame.error:
+            self.get_input = self.get_keyboard_input
+
         if RENDER:
-            pygame.init()
+
             self.screen =\
                 pygame.display.set_mode((FIELD_LENGTH+2*self.padding[0],
                                          FIELD_LENGTH+2*self.padding[1]),
                                         SCALED)
 
-        self.reset()
+        self.save = True if save_dir else False
+        self.dir = save_dir
+        self.trial = 0
 
-    def reset(self):
+        self.display_time = display_time
+        self.frame = 0
+        self.reset(new_game=True)
+
+    def reset(self, new_game: bool = False):
         """Reset the game by randomizing locations."""
         # Score and data tracking
         self.pos = []
         self.start_time = time.time()
-        self.trav = []
+
+        # New game has been created
+        if new_game:
+            self.trial += 1
+            if self.save:
+                self.data_path = self.dir + f'{self.trial}/'
+                self.img_path = self.data_path + "img/"
+
+                os.mkdir(self.data_path)
+                os.mkdir(self.img_path)
+
+        # reset the game
+        if self.frame != 0 and not new_game and self.save:
+            # Delete stored data
+            files = glob.glob(self.img_path + '*')
+            for f in files:
+                os.remove(f)
+
+        self.frame = 0
 
         # Time display
         self.font = pygame.font.SysFont('Consolas', 20, True)
         self.start_time = pygame.time.get_ticks()
 
-        # TODO: Generates a random number of agents
+        # Generates a random number of agents
         self.num_agents = np.random.randint(2, MAX_NUM_AGENTS+1)
         self.num_nearest = self.num_agents-1
 
@@ -49,19 +86,21 @@ class Game:
         self.dog = np.random.rand(2)*FIELD_LENGTH/2
         self.dog[1] += FIELD_LENGTH/2
 
-        # Place the target in the bottom left corner
-        self.target = np.array([0, FIELD_LENGTH-1])
-
         # Randomely place the sheep in the top right quarter
         self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH/2
         self.sheep[:, 0] += FIELD_LENGTH/2
         self.CoM = np.mean(self.sheep, axis=0)
 
+        # Place the target randomly, but make sure the game isn't "won"
+        self.target = np.random.rand(2)*FIELD_LENGTH
+        while dist(self.CoM, self.target) < TARGET_RADIUS:
+            self.target = np.random.rand(2)*FIELD_LENGTH
+
         # Heading arrays for sheep movement
         self.heading = np.zeros_like(self.sheep)
 
         # Record positions
-        self.pos.append([self.dog, *self.sheep])
+        self.pos.append([*self.dog])
 
     def step(self, direction):
         """
@@ -101,7 +140,7 @@ class Game:
 
                 # attraction to LCM
                 if len(seen_sheep) == 0:
-                    lcm_attract = np.array([0,0])
+                    lcm_attract = np.array([0, 0])
                 else:
                     LCM = np.mean(
                         seen_sheep[:max(self.num_nearest, len(seen_sheep))+1], axis=0)
@@ -132,7 +171,7 @@ class Game:
         for index, sheep in enumerate(self.sheep):
             self.sheep[index] = self.calculate_movement(
                 sheep, S_Speed*next_heading[index])
-        # self.sheep += S_Speed*next_heading
+        self.sheep += S_Speed*next_heading
 
         # Update heading for next iteration
         self.heading = next_heading
@@ -142,8 +181,12 @@ class Game:
             self.dog = self.dog.clip(0, FIELD_LENGTH-1)
             self.sheep = self.sheep.clip(0, FIELD_LENGTH-1)
 
-        # Record positions
-        self.pos.append([self.dog, *self.sheep])
+        # Record positions and save frame
+        self.pos.append([*self.dog])
+        if self.save:
+            pygame.image.save(
+                self.screen, self.img_path+f"{self.frame}.bmp")
+            self.frame += 1
 
         # End game if CoM of sheep is within the target
         self.CoM = np.mean(self.sheep, axis=0)
@@ -152,12 +195,31 @@ class Game:
 
         return False
 
-    def get_key_input(self):
-        """Get key inputs for game controls."""
+    def get_joy_input(self):
+        """Key key inputs for game controls using joystick."""
         x, y = 0, 0
         keys = pygame.key.get_pressed()
 
-        # # Movement
+        # Get joystick movements
+        pygame.event.get()
+        x = self.joystick.get_axis(3) * D_Speed
+        y = self.joystick.get_axis(4) * D_Speed
+
+        # Reset
+        if keys[pygame.K_r]:
+            self.reset()
+
+        if keys[pygame.K_ESCAPE]:
+            return False
+
+        return (x, y)
+
+    def get_keyboard_input(self):
+        """Get key inputs for game controls using keyboard."""
+        x, y = 0, 0
+        keys = pygame.key.get_pressed()
+
+        # Movement
         if keys[pygame.K_RIGHT]:
             x += D_Speed
         if keys[pygame.K_DOWN]:
@@ -166,11 +228,6 @@ class Game:
             x -= D_Speed
         if keys[pygame.K_UP]:
             y -= D_Speed
-
-        # Get joystick movements
-        # pygame.event.get()
-        # x = self.joystick.get_axis(3)
-        # y = self.joystick.get_axis(4)
 
         # Reset
         if keys[pygame.K_r]:
@@ -254,7 +311,7 @@ class Game:
 
         # Target Radius
         pygame.draw.circle(self.screen, BLACK, tuple(
-            self.padding + self.target), TARGET_RADIUS, 4)
+            self.padding + self.target), TARGET_RADIUS, 0)
 
         # Goal
         pygame.draw.circle(self.screen, BLACK,
@@ -282,9 +339,10 @@ class Game:
                 line.start + self.padding), tuple(line.end + self.padding))
 
         # Time
-        time_passed = (pygame.time.get_ticks() - self.start_time)/1000
-        message = 'Seconds: ' + str(time_passed)
-        self.screen.blit(self.font.render(message, True, BLACK), (0, 0))
+        if self.display_time:
+            time_passed = (pygame.time.get_ticks() - self.start_time)/1000
+            message = 'Seconds: ' + str(time_passed)
+            self.screen.blit(self.font.render(message, True, BLACK), (0, 0))
 
         # Update display
         pygame.display.update()
@@ -300,49 +358,63 @@ class Game:
                 return False
         return True
 
-    def save(self):
-        """Save the data to a csv."""
-        game_time = time.time() - self.start_time
-        with open("{:.3f}".format(game_time) + '.csv', 'w', newline=''
+    def save_pos(self):
+        """self.save the game data to a csv and video"""
+        with open(self.data_path + 'pos.csv', 'w', newline=''
                   )as csvfile:
-            prev_row = np.round(self.pos[0], 3)
+            row = np.round(self.pos[0], 3)
             writer = csv.writer(csvfile)
-            writer.writerow(prev_row)
+            writer.writerow(row)
+            print("total_data: ", len(self.pos))
 
             # Iterate over each set of points
             for i in range(1, len(self.pos)):
-                row = np.round(self.pos[i], 3)
+                writer.writerow(np.round(self.pos[i], 3))
 
-                # Don't write duplicates
-                if not np.array_equal(row, prev_row):
-                    writer.writerow(row)
+    def run(self, num_runs: Optional[int] = None):
+        """
+        Main function for running the game.
 
-                prev_row = row
-
-    def run(self):
-        """Main function for running the game."""
+        Args:
+            num_runs (Optional[int]): Number of runs to do. If none, the game
+                will keep repeating
+        """
         while not RENDER or self.pygame_running():
             if RENDER:
                 self.render()
 
             # Get key input
-            action = self.get_key_input()
+            action = self.get_input()
 
             if action:
                 # Run each step of the game
                 ended = self.step(action)
             else:
-                # If no action, end the game
+                if self.save:
+                    # Delete stored data if saved
+                    files = glob.glob(self.img_path + '*')
+                    for f in files:
+                        os.remove(f)
+
+                    os.rmdir(self.img_path)
+                    os.rmdir(self.data_path)
+
+                # Close the game
                 break
 
             # Reset game on reaching goal
             if ended:
-                self.save() # TODO: Uncomment
-                self.reset()
+                if self.save:
+                    self.save_pos()
+                if num_runs and self.trial > num_runs:
+                    break
+
+                self.reset(new_game=True)
 
             # Update the game clock
             fpsClock.tick(FPS)
 
 
 if __name__ == "__main__":
-    Game().run()
+    # Game(save_dir="data/").run()
+    Game().run(num_runs=3)
