@@ -3,7 +3,7 @@ This repository contains code for playing shephereding game. The goal is the con
 
 # Features
 This game features additional capabilities and parameters that are easy for the player to tune.
-- Paramter Tuning: Can be changed in the `parameters.py` file
+- Paramter Tuning: Can be changed in the [`parameters.py`](parameters.py) file
 - Obstacles
     - Sheep will not "see" each other or the shephered if there is an obstacle in the way
     - Sheep and shepherd will slide along the obstacles if there is a collision
@@ -23,6 +23,10 @@ ws
 │   └── 2  
 └── Shepherd_game       # this repo
 ```
+- pygame autoscaling
+    - The game will be automatically scaled up
+    - Saved data images will remain at the original size
+
 
 # Dependencies
 The game has been successfully run in the following environment:
