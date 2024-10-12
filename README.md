@@ -9,6 +9,20 @@ This game features additional capabilities and parameters that are easy for the 
     - Sheep and shepherd will slide along the obstacles if there is a collision
     - There is support for circular and linear obstacles
     - Obstacles can be added in the [`obstacles.py`](obstacles.py) file
+- Data Saving
+    - Saves the shepherd position and game state as a bmp in the following format:
+```
+ws
+├── data                # Contains data for each game run
+│   └── 1  
+│       └── img         # Contains the image at each frame, as a bmp
+│           └── 0.bmp
+│           └── 1.bmp
+│           └── ...
+│       └── pos.csv     # Contains the shepherd positions, as (x,y) per frame
+│   └── 2  
+└── Shepherd_game       # this repo
+```
 
 # Dependencies
 The game has been successfully run in the following environment:
