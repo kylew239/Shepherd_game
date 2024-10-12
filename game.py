@@ -35,7 +35,6 @@ class Game:
             self.get_input = self.get_keyboard_input
 
         if RENDER:
-
             self.screen =\
                 pygame.display.set_mode((FIELD_LENGTH+2*self.padding[0],
                                          FIELD_LENGTH+2*self.padding[1]),
@@ -406,7 +405,7 @@ class Game:
             if ended:
                 if self.save:
                     self.save_pos()
-                if num_runs and self.trial > num_runs:
+                if num_runs and self.trial >= num_runs:
                     break
 
                 self.reset(new_game=True)
@@ -416,5 +415,5 @@ class Game:
 
 
 if __name__ == "__main__":
-    # Game(save_dir="data/").run()
-    Game().run(num_runs=3)
+    Game(save_dir="data/").run(num_runs=16)
+    # Game().run(num_runs=3)
