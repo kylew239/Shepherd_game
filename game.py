@@ -1,4 +1,3 @@
-# TODO: make sure sheep don't spawn in obstacles?
 import csv
 import glob
 import math
@@ -7,11 +6,12 @@ import time
 from typing import Optional
 
 import numpy as np
-import obstacles
 import pygame
-from parameters import *
 from pygame.locals import *
-from utils import *
+
+from game import obstacles
+from game.parameters import *
+from game.utils import *
 
 FPS = 20
 fpsClock = pygame.time.Clock()
