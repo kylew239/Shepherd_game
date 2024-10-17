@@ -1,6 +1,27 @@
 # Shepherding Pygame
 This repository contains code for playing shephereding game. The goal is the control the shepherd (dog, blue circle) to herd the sheep (white circles) into the target zone (black circle). The game is "won" when the center of mass of the sheep (grey circle with a black border) reaches the goal area. The sheep behave as described by the [Strombom model](https://royalsocietypublishing.org/doi/10.1098/rsif.2014.0719)
 
+
+# Quickstart
+1. Create a `ws` folder and clone this repo into it. Refer to the diagram [in Features](#features)
+
+2. Install pygame using `pip install pygame`
+
+3. Create the `data/` folder in the `ws`
+
+4. Add the package to your python path. You may need to do this everytime you reopen the terminal
+```
+export PYTHONPATH=.:$PYTHONPATH
+
+# OR
+
+export PYTHONPATH=~/ws/:$PYTHONPATH
+```
+
+5. OPTIONAL: Setup up your controller. You can also use the arrow keys on a standard keyboard
+
+6. Edit parameters and/or save information. Run the game from `ws` using `python3 shepherd_game/game.py`
+
 # Features
 This game features additional capabilities and parameters that are easy for the player to tune.
 - Paramter Tuning: Can be changed in the [`parameters.py`](parameters.py) file

@@ -9,9 +9,9 @@ import numpy as np
 import pygame
 from pygame.locals import *
 
-from game import obstacles
-from game.parameters import *
-from game.utils import *
+from shepherd_game import obstacles
+from shepherd_game.parameters import *
+from shepherd_game.utils import *
 
 FPS = 20
 fpsClock = pygame.time.Clock()
@@ -23,9 +23,10 @@ BLACK = (0, 0, 0)
 class Game:
     def __init__(self,
                  save_dir: str = '',
-                 display_time: bool = False):
+                 display_time: bool = False,
+                 start_run: Optional[int] = None):
         pygame.init()
-        self.padding = np.array([40, 40])
+        self.padding = np.array(PADDING)
 
         # Try to get the joystick, use keyboard if error
         try:
@@ -42,7 +43,7 @@ class Game:
 
         self.save = True if save_dir else False
         self.dir = save_dir
-        self.trial = 0
+        self.trial = 0 if not start_run else start_run
 
         self.display_time = display_time
         self.frame = 0
@@ -90,16 +91,21 @@ class Game:
         self.sheep[:, 0] += FIELD_LENGTH/2
         self.CoM = np.mean(self.sheep, axis=0)
 
-        # Place the target randomly, but make sure the game isn't "won"
-        self.target = np.random.rand(2)*FIELD_LENGTH
-        while dist(self.CoM, self.target) < TARGET_RADIUS:
+        # Place the target
+        if RANDOMIZE_GOAL:
+            # Randomize but make sure the game isn't "won"
             self.target = np.random.rand(2)*FIELD_LENGTH
+            while dist(self.CoM, self.target) < TARGET_RADIUS:
+                self.target = np.random.rand(2)*FIELD_LENGTH
+        else:
+            # Bottom left corner
+            self.target = np.array([0, FIELD_LENGTH-1])
 
         # Heading arrays for sheep movement
         self.heading = np.zeros_like(self.sheep)
 
         # Record positions
-        self.pos.append([*self.dog])
+        self.pos.append([*self.dog, 0, 0])
 
     def step(self, direction):
         """
@@ -181,7 +187,7 @@ class Game:
             self.sheep = self.sheep.clip(0, FIELD_LENGTH-1)
 
         # Record positions and save frame
-        self.pos.append([*self.dog])
+        self.pos.append([*self.dog, *direction])
         if self.save:
             pygame.image.save(
                 self.screen, self.img_path+f"{self.frame}.bmp")
@@ -378,6 +384,7 @@ class Game:
             num_runs (Optional[int]): Number of runs to do. If none, the game
                 will keep repeating
         """
+        goal_runs = self.trial + num_runs if num_runs else self.trial
         while not RENDER or self.pygame_running():
             if RENDER:
                 self.render()
@@ -405,7 +412,7 @@ class Game:
             if ended:
                 if self.save:
                     self.save_pos()
-                if num_runs and self.trial >= num_runs:
+                if num_runs and self.trial >= goal_runs:
                     break
 
                 self.reset(new_game=True)
@@ -415,5 +422,5 @@ class Game:
 
 
 if __name__ == "__main__":
-    Game(save_dir="data/").run(num_runs=16)
-    # Game().run(num_runs=3)
+    # Game(save_dir="data/", start_run=33).run(num_runs=17)
+    Game(save_dir="data/", start_run=52).run(num_runs=1)

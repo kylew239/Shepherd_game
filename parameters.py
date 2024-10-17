@@ -9,12 +9,13 @@
 
 RENDER = True                   # render pygame
 
-### Field Parameters
-FIELD_LENGTH = 150              # field width and height
+# Field Parameters
+FIELD_LENGTH = 100              # field width and height
+PADDING = [15, 15]
 CLIP = False                     # clip to field boundary
-TARGET_RADIUS = 15              # distance from target to trigger win condition
+TARGET_RADIUS = 10              # distance from target to trigger win condition
 
-### Agent Parameters
+# Agent Parameters
 MAX_NUM_AGENTS = 10             # number of agents [0, MAX_NUM_AGENTS]
 R_S = 20                        # shepherd detection distance
 R_A = 10                        # agent repulsion distance
@@ -29,5 +30,9 @@ GRAZE = 0.10                    # Probability of moving per time step while graz
 S_Speed = 1                     # Agent speed
 
 
-### Shepherding parameters
+# Shepherding parameters
 D_Speed = 2                   # Shepherd speed
+
+
+# Additional Parameters
+RANDOMIZE_GOAL = False
