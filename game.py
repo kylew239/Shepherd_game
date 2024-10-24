@@ -74,12 +74,21 @@ class Game:
         self.start_time = pygame.time.get_ticks()
 
         # Generates a random number of agents
+        np.random.seed(None)  # Reset the seed to random
         self.num_agents = np.random.randint(MIN_NUM_AGENTS, MAX_NUM_AGENTS+1)
         self.num_nearest = self.num_agents-1
 
-        # Randomly place the dog in the bottom left quarter
-        self.dog = np.random.rand(2)*FIELD_LENGTH/2
-        self.dog[1] += FIELD_LENGTH/2
+        # Randomly place the dog target circle
+        th = np.random.uniform(0, 2*np.pi)
+        r = TARGET_RADIUS * np.sqrt(np.random.uniform(0, 1))
+        self.dog = np.array([
+            r * np.cos(th),  # x position
+            r * np.sin(th) + FIELD_LENGTH  # y position
+        ])
+
+        # Randomly place the dog in the bottom left corner
+        # self.dog = np.random.rand(2)*FIELD_LENGTH/2
+        # self.dog[1] += FIELD_LENGTH/2
 
         # Randomely place the sheep in the top right quarter
         np.random.seed(self.seed)
@@ -266,7 +275,7 @@ class Game:
                            start: np.ndarray,
                            movement: np.ndarray) -> np.ndarray:
         """
-        Calculate movement after checking for obstacle collisions
+        Calculate movement after checking for obstacle collisions.
 
         Args:
             start (np.ndarray): Starting point
@@ -387,9 +396,7 @@ class Game:
             pygame.image.save(img, self.img_path+f"{idx+1}.bmp")
 
     def run(self):
-        """
-        Main function for running the game.
-        """
+        """Main function for running the game."""
         while not RENDER or self.pygame_running():
             if RENDER:
                 self.render()
