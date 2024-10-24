@@ -1,5 +1,4 @@
 import csv
-import glob
 import math
 import os
 import time
@@ -13,7 +12,7 @@ from shepherd_game import obstacles
 from shepherd_game.parameters import *
 from shepherd_game.utils import *
 
-FPS = 20
+FPS = 15
 fpsClock = pygame.time.Clock()
 OBSTACLE_COLOR = (139, 69, 19)
 WHITE = (255, 255, 255)
@@ -24,7 +23,20 @@ class Game:
     def __init__(self,
                  save_dir: str = '',
                  display_time: bool = False,
-                 start_run: Optional[int] = None):
+                 start_run: Optional[int] = None,
+                 seed: Optional[int] = None):
+        """
+        Create a shepeherding game instance.
+
+        Args:
+            save_dir (str): Directory to save to. If no directory is
+                provided, the game will not be saved
+            display_time (bool): Display the game time on the window.
+                Defaults to False.
+            start_run (Optional[int]): Which run number to start on.
+                Used with save_dir. Defaults to None.
+            seed (Optional[int]): Seed the sheep position. Defaults to None.
+        """
         pygame.init()
         self.padding = np.array(PADDING)
 
@@ -44,42 +56,25 @@ class Game:
         self.save = True if save_dir else False
         self.dir = save_dir
         self.trial = 0 if not start_run else start_run
+        self.seed = seed
 
         self.display_time = display_time
-        self.frame = 0
-        self.reset(new_game=True)
+        self.reset()
 
-    def reset(self, new_game: bool = False):
+    def reset(self):
         """Reset the game by randomizing locations."""
         # Score and data tracking
         self.pos = []
+        self.img_list = []
+        self.sheep_pos = []
         self.start_time = time.time()
-
-        # New game has been created
-        if new_game:
-            self.trial += 1
-            if self.save:
-                self.data_path = self.dir + f'{self.trial}/'
-                self.img_path = self.data_path + "img/"
-
-                os.mkdir(self.data_path)
-                os.mkdir(self.img_path)
-
-        # reset the game
-        if self.frame != 0 and not new_game and self.save:
-            # Delete stored data
-            files = glob.glob(self.img_path + '*')
-            for f in files:
-                os.remove(f)
-
-        self.frame = 0
 
         # Time display
         self.font = pygame.font.SysFont('Consolas', 20, True)
         self.start_time = pygame.time.get_ticks()
 
         # Generates a random number of agents
-        self.num_agents = np.random.randint(2, MAX_NUM_AGENTS+1)
+        self.num_agents = np.random.randint(MIN_NUM_AGENTS, MAX_NUM_AGENTS+1)
         self.num_nearest = self.num_agents-1
 
         # Randomly place the dog in the bottom left quarter
@@ -87,6 +82,7 @@ class Game:
         self.dog[1] += FIELD_LENGTH/2
 
         # Randomely place the sheep in the top right quarter
+        np.random.seed(self.seed)
         self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH/2
         self.sheep[:, 0] += FIELD_LENGTH/2
         self.CoM = np.mean(self.sheep, axis=0)
@@ -104,9 +100,6 @@ class Game:
         # Heading arrays for sheep movement
         self.heading = np.zeros_like(self.sheep)
 
-        # Record positions
-        self.pos.append([*self.dog, 0, 0])
-
     def step(self, direction):
         """
         Calculate one game step.
@@ -117,7 +110,6 @@ class Game:
         next_heading = np.zeros_like(self.heading)
 
         # Add direction to the coordinates
-        # TODO: Turn into unit or smaller?
         self.dog = self.calculate_movement(self.dog, direction)
 
         # Iterate through each sheep to calculate movement
@@ -187,15 +179,17 @@ class Game:
             self.sheep = self.sheep.clip(0, FIELD_LENGTH-1)
 
         # Record positions and save frame
-        self.pos.append([*self.dog, *direction])
+        self.CoM = np.mean(self.sheep, axis=0)
+        dist_to_goal = dist(self.CoM, self.target)
+        self.pos.append([*self.dog, *direction, *self.CoM, dist_to_goal])
+        self.sheep_pos.append([pos for sheep in self.sheep for pos in sheep])
         if self.save:
-            pygame.image.save(
-                self.screen, self.img_path+f"{self.frame}.bmp")
-            self.frame += 1
+            # This is a "hack" to save each frame since copy.deepcopy doesn't work
+            # on pygame surfaces
+            self.img_list.append(pygame.surfarray.array3d(self.screen))
 
         # End game if CoM of sheep is within the target
-        self.CoM = np.mean(self.sheep, axis=0)
-        if dist(self.CoM, self.target) < TARGET_RADIUS:
+        if dist_to_goal < TARGET_RADIUS:
             return True
 
         return False
@@ -314,25 +308,21 @@ class Game:
         """Render the game window."""
         self.screen.fill((19, 133, 16))
 
-        # Target Radius
+        # Target
         pygame.draw.circle(self.screen, BLACK, tuple(
             self.padding + self.target), TARGET_RADIUS, 0)
 
-        # Goal
-        pygame.draw.circle(self.screen, BLACK,
-                           tuple(self.padding + self.target), 3, 0)
-
         # Dog
         pygame.draw.circle(self.screen, (25, 25, 255), tuple(
-            self.padding + self.dog), 2, 0)
+            self.padding + self.dog), 1, 0)
 
         # Sheep
-        [pygame.draw.circle(self.screen, WHITE, tuple(self.padding + a), 3, 0)
+        [pygame.draw.circle(self.screen, WHITE, tuple(self.padding + a), 1, 0)
             for a in self.sheep]
         pygame.draw.circle(self.screen, BLACK,
-                           tuple(self.padding + self.CoM), 4, 0)
-        pygame.draw.circle(self.screen, (200, 200, 200),
                            tuple(self.padding + self.CoM), 2, 0)
+        pygame.draw.circle(self.screen, (200, 200, 200),
+                           tuple(self.padding + self.CoM), 1, 0)
 
         # Draw obstacles
         for circle in obstacles.circles:
@@ -363,8 +353,14 @@ class Game:
                 return False
         return True
 
-    def save_pos(self):
-        """self.save the game data to a csv and video"""
+    def save_data(self):
+        """Save the game data to a csv and images."""
+        self.data_path = self.dir + f'{self.trial}/'
+        self.img_path = self.data_path + "img/"
+
+        os.mkdir(self.data_path)
+        os.mkdir(self.img_path)
+
         with open(self.data_path + 'pos.csv', 'w', newline=''
                   )as csvfile:
             row = np.round(self.pos[0], 3)
@@ -376,15 +372,24 @@ class Game:
             for i in range(1, len(self.pos)):
                 writer.writerow(np.round(self.pos[i], 3))
 
-    def run(self, num_runs: Optional[int] = None):
+        with open(self.data_path + 'sheep_pos.csv', 'w', newline=''
+                  )as csvfile:
+            row = np.round(self.sheep_pos[0], 3)
+            writer = csv.writer(csvfile)
+            writer.writerow(row)
+
+            # Iterate over each set of points
+            for i in range(1, len(self.sheep_pos)):
+                writer.writerow(np.round(self.sheep_pos[i], 3))
+
+        for idx, pix_array in enumerate(self.img_list):
+            img = pygame.surfarray.make_surface(pix_array)
+            pygame.image.save(img, self.img_path+f"{idx+1}.bmp")
+
+    def run(self):
         """
         Main function for running the game.
-
-        Args:
-            num_runs (Optional[int]): Number of runs to do. If none, the game
-                will keep repeating
         """
-        goal_runs = self.trial + num_runs if num_runs else self.trial
         while not RENDER or self.pygame_running():
             if RENDER:
                 self.render()
@@ -396,26 +401,16 @@ class Game:
                 # Run each step of the game
                 ended = self.step(action)
             else:
-                if self.save:
-                    # Delete stored data if saved
-                    files = glob.glob(self.img_path + '*')
-                    for f in files:
-                        os.remove(f)
-
-                    os.rmdir(self.img_path)
-                    os.rmdir(self.data_path)
-
                 # Close the game
                 break
 
             # Reset game on reaching goal
             if ended:
                 if self.save:
-                    self.save_pos()
-                if num_runs and self.trial >= goal_runs:
-                    break
+                    self.save_data()
 
-                self.reset(new_game=True)
+                self.reset()
+                print(f"Data saved in {self.data_path}")
 
             # Update the game clock
             fpsClock.tick(FPS)
@@ -423,4 +418,4 @@ class Game:
 
 if __name__ == "__main__":
     # Game(save_dir="data/", start_run=33).run(num_runs=17)
-    Game(save_dir="data/", start_run=52).run(num_runs=1)
+    Game(save_dir="test/", start_run=97, seed=0).run()

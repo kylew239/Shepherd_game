@@ -10,21 +10,22 @@
 RENDER = True                   # render pygame
 
 # Field Parameters
-FIELD_LENGTH = 100              # field width and height
+FIELD_LENGTH = 150              # field width and height
 PADDING = [15, 15]
 CLIP = False                     # clip to field boundary
 TARGET_RADIUS = 10              # distance from target to trigger win condition
 
 # Agent Parameters
-MAX_NUM_AGENTS = 10             # number of agents [0, MAX_NUM_AGENTS]
+MIN_NUM_AGENTS = 5              # number of agents
+MAX_NUM_AGENTS = 5              # [MIN_NUM_AGENTS, MAX_NUM_AGENTS]
 R_S = 20                        # shepherd detection distance
-R_A = 10                        # agent repulsion distance
+R_A = 2                        # agent repulsion distance
 # P_A > P_C > P_S (eliminate inertial term for discrete setting)
 
 P_A = 2                         # agent repulsion weight
-P_C = 1.                        # LCM attraction weight
+P_C = 1.05                        # LCM attraction weight
 P_S = 1                         # shepherd repulsion weight
-P_H = 0.6                       # Heading weight
+P_H = 0.5                       # Heading weight
 E = 0.3                         # relative strength of angular noise
 GRAZE = 0.10                    # Probability of moving per time step while grazing
 S_Speed = 1                     # Agent speed
