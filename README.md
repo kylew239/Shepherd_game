@@ -64,7 +64,7 @@ The game has been successfully run in the following environment:
         - `pygame==2.1.2`
     
 # Controller mapping
-These are the mappings on my controller. I am using an xBox One Wireless controller, connected through a USB C Cable. You can run `python3 joy.py` to see if your controller has the same mappings.
+These are the mappings on my controller. I am using an xBox One Wireless controller, connected through a USB C Cable. You can run `python3 shepherd_game/joy.py` to see if your controller has the same mappings.
 
 ## Buttons
 - 0: A
