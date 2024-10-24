@@ -63,3 +63,36 @@ The game has been successfully run in the following environment:
         - `numpy==1.26.4`
         - `pygame==2.1.2`
     
+# Controller mapping
+These are the mappings on my controller. I am using an xBox One Wireless controller, connected through a USB C Cable. You can run `python3 joy.py` to see if your controller has the same mappings.
+
+## Buttons
+- 0: A
+- 1: B
+- 2: X
+- 3: Y
+- 4: Left button
+- 5: Right Button
+- 6: Toggle View (Center Left)
+- 7: Menu Button (Center Right)
+- 8: xBox button (Center Top, xBox logo)
+- 9: Left Joystick Press
+- 10: Right Joystick Press
+- 11: Center Bottom Button
+
+## Joystick Axis
+- 0: Left Joystick, Horizontal (Left is negative)
+- 1: Left Joystick, Vertical (Up is negative)
+- 2: Left Trigger
+- 3: Right Joystick, Horizontal (Left is negative)
+- 4: Right Joystick, Vertical (Up is negative)
+- 5: Right Trigger
+
+## Joystick Hat
+This is the d-pad. Example usage:
+```
+pygame.init()
+joystick = pygame.joystick.Joystick(0)
+joystick.get_hat(0)
+```
+`joystick.get_hat()` returns a tuple, where the first value represents the x-axis and the second value represents the y-axis. Left and Down are negative, while Right and Up are positive
