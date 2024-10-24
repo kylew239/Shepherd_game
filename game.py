@@ -1,6 +1,7 @@
 import csv
 import math
 import os
+import threading
 import time
 from typing import Optional
 
@@ -205,20 +206,16 @@ class Game:
 
     def get_joy_input(self):
         """Key key inputs for game controls using joystick."""
-        x, y = 0, 0
-        keys = pygame.key.get_pressed()
-
-        # Get joystick movements
-        pygame.event.get()
-        x = self.joystick.get_axis(3) * D_Speed
-        y = self.joystick.get_axis(4) * D_Speed
-
-        # Reset
-        if keys[pygame.K_r]:
+        # Refer to the Controller Mapping section in the README to
+        # understand what buttons are being used
+        if (self.joystick.get_button(8)):
+            return False
+        if (self.joystick.get_button(5)):
             self.reset()
 
-        if keys[pygame.K_ESCAPE]:
-            return False
+        # Get joystick movements
+        x = self.joystick.get_axis(3) * D_Speed
+        y = self.joystick.get_axis(4) * D_Speed
 
         return (x, y)
 
