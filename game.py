@@ -362,6 +362,7 @@ class Game:
         """Save the game data to a csv and images."""
         self.data_path = self.dir + f'{self.trial}/'
         self.img_path = self.data_path + "img/"
+        self.trial += 1
 
         os.mkdir(self.data_path)
         os.mkdir(self.img_path)
@@ -421,4 +422,4 @@ class Game:
 
 if __name__ == "__main__":
     # Game(save_dir="data/", start_run=33).run(num_runs=17)
-    Game(save_dir="test/", start_run=97, seed=0).run()
+    Game(save_dir="test/", start_run=101, seed=0).run()
