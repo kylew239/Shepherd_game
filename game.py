@@ -21,12 +21,17 @@ BLACK = (0, 0, 0)
 
 class Game:
     def __init__(self,
-                 save_dir: str = '',
+                 save_dir: str = None,
                  display_time: bool = False,
                  start_run: Optional[int] = None,
-                 seed: Optional[int] = None):
+                 seed: Optional[int] = None,
+                 random_goal: bool = False,
+                 start_in_goal: bool = True,
+                 sheep_top_right: bool = True,
+                 num_dog: int = 1,
+                 num_sheep: int = 5):
         """
-        Create a shepeherding game instance.
+        Create a shepherding game instance.
 
         Args:
             save_dir (str): Directory to save to. If no directory is
@@ -36,6 +41,13 @@ class Game:
             start_run (Optional[int]): Which run number to start on.
                 Used with save_dir. Defaults to None.
             seed (Optional[int]): Seed the sheep position. Defaults to None.
+            random_goal (bool): Randomize the goal location. Defaults to False.
+            start_in_goal (bool): Start the shepherd in the goal location. If
+                False, the shepherd will spawn in the bottom left. Defaults to True.
+            sheep_top_right (bool): Start the sheep in the top right corner. If
+                False, the sheep can spawn anywhere. Defaults to True
+            num_dog (int): The number of dogs to spawn. Defaults to 1
+            num_agents (int): The number of sheep to spawn. Defaults to 5
         """
         pygame.init()
         self.padding = np.array(PADDING)
@@ -53,10 +65,16 @@ class Game:
                                          FIELD_LENGTH+2*self.padding[1]),
                                         SCALED)
 
-        self.save = True if save_dir else False
+        self.save = True if save_dir is not None else False
         self.dir = save_dir
         self.trial = 0 if not start_run else start_run
         self.seed = seed
+        self.random_goal = random_goal
+        self.start_in_goal = start_in_goal
+        self.sheep_top_right = sheep_top_right
+        self.num_agents = num_sheep
+        self.num_nearest = self.num_agents-1
+        self.num_dog = num_dog
 
         self.display_time = display_time
         self.reset()
@@ -73,38 +91,40 @@ class Game:
         self.font = pygame.font.SysFont('Consolas', 20, True)
         self.start_time = pygame.time.get_ticks()
 
-        # Generates a random number of agents
-        np.random.seed(None)  # Reset the seed to random
-        self.num_agents = np.random.randint(MIN_NUM_AGENTS, MAX_NUM_AGENTS+1)
-        self.num_nearest = self.num_agents-1
-
-        # Randomly place the dog target circle
-        th = np.random.uniform(0, 2*np.pi)
-        r = TARGET_RADIUS * np.sqrt(np.random.uniform(0, 1))
-        self.dog = np.array([
-            r * np.cos(th),  # x position
-            r * np.sin(th) + FIELD_LENGTH  # y position
-        ])
-
-        # Randomly place the dog in the bottom left corner
-        # self.dog = np.random.rand(2)*FIELD_LENGTH/2
-        # self.dog[1] += FIELD_LENGTH/2
-
-        # Randomely place the sheep in the top right quarter
         np.random.seed(self.seed)
-        self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH/2
-        self.sheep[:, 0] += FIELD_LENGTH/2
+        if self.sheep_top_right:
+            # Randomely place the sheep in the top right quarter
+            self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH/2
+            self.sheep[:, 0] += FIELD_LENGTH/2
+        else:
+            # Randomly place the sheep anywhere
+            self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH
         self.CoM = np.mean(self.sheep, axis=0)
+        np.random.seed(None)  # Reset the seed
 
         # Place the target
-        if RANDOMIZE_GOAL:
+        if self.random_goal:
             # Randomize but make sure the game isn't "won"
-            self.target = np.random.rand(2)*FIELD_LENGTH
+            self.target = np.random.rand(2)*FIELD_LENGTH/2
+            self.target[1] += FIELD_LENGTH/2
             while dist(self.CoM, self.target) < TARGET_RADIUS:
                 self.target = np.random.rand(2)*FIELD_LENGTH
         else:
             # Bottom left corner
             self.target = np.array([0, FIELD_LENGTH-1])
+
+        if self.start_in_goal:
+            # Randomly place the dog target circle
+            th = np.random.uniform(0, 2*np.pi)
+            r = TARGET_RADIUS * np.sqrt(np.random.uniform(0, 1))
+            self.dog = np.array([np.array([
+                r * np.cos(th) + self.target[0],  # x position
+                r * np.sin(th) + self.target[1]   # y position
+            ]) for _ in range(self.num_dog)])
+        else:
+            # Randomly place the dog in the bottom left corner
+            self.dog = np.random.rand(self.num_dog, 2)*FIELD_LENGTH/2
+            self.dog[:, 1] += FIELD_LENGTH/2
 
         # Heading arrays for sheep movement
         self.heading = np.zeros_like(self.sheep)
@@ -118,66 +138,69 @@ class Game:
         """
         next_heading = np.zeros_like(self.heading)
 
-        # Add direction to the coordinates
-        self.dog = self.calculate_movement(self.dog, direction)
+        # Iterate for each dog
+        for idx, dog in enumerate(self.dog):
+            # Add direction to the coordinates
+            # Update dog position but don't overwrite the reference to self.dog
+            dog[:] = self.calculate_movement(dog, direction[idx])
 
-        # Iterate through each sheep to calculate movement
-        for i, sheep in enumerate(self.sheep):
-            # if sheep is far from dog or if sheep cannot see dog
-            if (dist(sheep, self.dog) > R_S) or self.cannot_see(sheep, self.dog):
-                # Random chance of moving in any direction / Grazing
-                if np.random.rand() < GRAZE:
-                    sheep[:] = self.calculate_movement(sheep, rand_unit())
+            # Iterate through each sheep to calculate movement
+            for i, sheep in enumerate(self.sheep):
+                # if sheep is far from dog or if sheep cannot see dog
+                if (dist(sheep, dog) > R_S) or self.cannot_see(sheep, dog):
+                    # Random chance of moving in any direction / Grazing
+                    if np.random.rand() < GRAZE:
+                        sheep[:] = self.calculate_movement(sheep, rand_unit())
 
-            # if sheep is close to dog, calculate movement
-            else:
-                # repulsion direction away from shepherd
-                dog_repul = unit_vect(sheep, self.dog)
-
-                # Sort sheep based on distance
-                nearest_sheep = sorted(
-                    self.sheep, key=lambda x: dist(sheep, x))[1:]
-
-                # Remove sheep that cannot be seen
-                seen_sheep = []
-                for neighbor in nearest_sheep:
-                    if not self.cannot_see(sheep, neighbor):
-                        seen_sheep.append(neighbor)
-
-                # attraction to LCM
-                if len(seen_sheep) == 0:
-                    lcm_attract = np.array([0, 0])
+                # if sheep is close to dog, calculate movement
                 else:
-                    LCM = np.mean(
-                        seen_sheep[:max(self.num_nearest, len(seen_sheep))+1], axis=0)
-                    lcm_attract = unit_vect(LCM, sheep)
+                    # repulsion direction away from shepherd
+                    dog_repul = unit_vect(sheep, dog)
 
-                # Filter sheep that are within a certain distance
-                neighbor_sheep = []
-                for neighbor in seen_sheep:
-                    if dist(sheep, neighbor) <= R_A:
-                        neighbor_sheep.append(neighbor)
+                    # Sort sheep based on distance
+                    nearest_sheep = sorted(
+                        self.sheep, key=lambda x: dist(sheep, x))[1:]
+
+                    # Remove sheep that cannot be seen
+                    seen_sheep = []
+                    for neighbor in nearest_sheep:
+                        if not self.cannot_see(sheep, neighbor):
+                            seen_sheep.append(neighbor)
+
+                    # attraction to LCM
+                    if len(seen_sheep) == 0:
+                        lcm_attract = np.array([0, 0])
                     else:
-                        break
+                        LCM = np.mean(
+                            seen_sheep[:max(self.num_nearest,
+                                            len(seen_sheep))+1], axis=0)
+                        lcm_attract = unit_vect(LCM, sheep)
 
-                # Calculate local repulsion
-                local_repul = np.zeros(2)
-                for neighbor in neighbor_sheep:
-                    local_repul += unit_vect(sheep, neighbor)
-                local_repul = unit_vect(local_repul)
+                    # Filter sheep that are within a certain distance
+                    neighbor_sheep = []
+                    for neighbor in seen_sheep:
+                        if dist(sheep, neighbor) <= R_A:
+                            neighbor_sheep.append(neighbor)
+                        else:
+                            break
 
-                # Calculate heading agent using local attractions
-                next_heading[i] = P_C*lcm_attract + \
-                    P_A*local_repul + P_S*dog_repul
+                    # Calculate local repulsion
+                    local_repul = np.zeros(2)
+                    for neighbor in neighbor_sheep:
+                        local_repul += unit_vect(sheep, neighbor)
+                    local_repul = unit_vect(local_repul)
 
-        # Update heading to include previous headings
-        next_heading = next_heading + P_H*self.heading
+                    # Calculate heading agent using local attractions
+                    next_heading[i] += P_C*lcm_attract + \
+                        P_A*local_repul + P_S*dog_repul
+
+                    # Update heading to include previous headings
+                    next_heading[i] = next_heading[i] + P_H*self.heading[i]
 
         # Update sheep location with obstacle clipping
-        for index, sheep in enumerate(self.sheep):
-            self.sheep[index] = self.calculate_movement(
-                sheep, S_Speed*next_heading[index])
-        self.sheep += S_Speed*next_heading
+        for idx in range(self.num_agents):
+            self.sheep[idx] = self.calculate_movement(
+                self.sheep[idx], S_Speed*unit_vect(next_heading[idx]))
 
         # Update heading for next iteration
         self.heading = next_heading
@@ -190,11 +213,10 @@ class Game:
         # Record positions and save frame
         self.CoM = np.mean(self.sheep, axis=0)
         dist_to_goal = dist(self.CoM, self.target)
-        self.pos.append([*self.dog, *direction, *self.CoM, dist_to_goal])
+        self.pos.append([*self.dog, *direction, *self.CoM,
+                        dist_to_goal, *self.target])
         self.sheep_pos.append([pos for sheep in self.sheep for pos in sheep])
         if self.save:
-            # This is a "hack" to save each frame since copy.deepcopy doesn't work
-            # on pygame surfaces
             self.img_list.append(pygame.surfarray.array3d(self.screen))
 
         # End game if CoM of sheep is within the target
@@ -213,10 +235,21 @@ class Game:
             self.reset()
 
         # Get joystick movements
-        x = self.joystick.get_axis(3) * D_Speed
-        y = self.joystick.get_axis(4) * D_Speed
+        x = self.joystick.get_axis(3)
+        y = self.joystick.get_axis(4)
 
-        return (x, y)
+        # Build movement based on num dog
+        if self.num_dog == 1:
+            move = np.array([[x, y]])
+        elif self.num_dog == 2:
+            move = np.array([
+                [x, y],
+                [self.joystick.get_axis(0), self.joystick.get_axis(1)]
+            ])
+        else:
+            raise NotImplementedError
+
+        return move * D_Speed
 
     def get_keyboard_input(self):
         """Get key inputs for game controls using keyboard."""
@@ -233,6 +266,26 @@ class Game:
         if keys[pygame.K_UP]:
             y -= D_Speed
 
+        # Build movement based on num dog
+        if self.num_dog == 1:
+            move = np.array([[x, y]])
+        elif self.num_dog == 2:
+            x2, y2 = 0, 0
+            if keys[pygame.K_d]:
+                x2 += D_Speed
+            if keys[pygame.K_s]:
+                y2 += D_Speed
+            if keys[pygame.K_a]:
+                x2 -= D_Speed
+            if keys[pygame.K_w]:
+                y2 -= D_Speed
+            move = np.array([
+                [x, y],
+                [x2, y2]
+            ])
+        else:
+            raise NotImplementedError
+
         # Reset
         if keys[pygame.K_r]:
             self.reset()
@@ -240,7 +293,7 @@ class Game:
         if keys[pygame.K_ESCAPE]:
             return False
 
-        return (x, y)
+        return move
 
     def cannot_see(self,
                    point1: np.ndarray,
@@ -309,8 +362,13 @@ class Game:
 
         return end
 
-    def render(self):
-        """Render the game window."""
+    def render(self, draw: bool = True):
+        """
+        Render the game window.
+
+        Args:
+            draw (bool): Update the pygame display. Defaults to True
+        """
         self.screen.fill((19, 133, 16))
 
         # Target
@@ -318,16 +376,13 @@ class Game:
             self.padding + self.target), TARGET_RADIUS, 0)
 
         # Dog
-        pygame.draw.circle(self.screen, (25, 25, 255), tuple(
-            self.padding + self.dog), 1, 0)
+        [pygame.draw.circle(self.screen, (25, 25, 255), tuple(
+            self.padding + pos), 1, 0) for pos in self.dog]
 
         # Sheep
-        [pygame.draw.circle(self.screen, WHITE, tuple(self.padding + a), 1, 0)
-            for a in self.sheep]
-        pygame.draw.circle(self.screen, BLACK,
-                           tuple(self.padding + self.CoM), 2, 0)
-        pygame.draw.circle(self.screen, (200, 200, 200),
-                           tuple(self.padding + self.CoM), 1, 0)
+        [pygame.draw.circle(self.screen, WHITE,
+                            tuple(self.padding + pos), 1, 0)
+            for pos in self.sheep]
 
         # Draw obstacles
         for circle in obstacles.circles:
@@ -345,7 +400,8 @@ class Game:
             self.screen.blit(self.font.render(message, True, BLACK), (0, 0))
 
         # Update display
-        pygame.display.update()
+        if draw:
+            pygame.display.update()
 
     def pygame_running(self):
         """
@@ -401,7 +457,7 @@ class Game:
             # Get key input
             action = self.get_input()
 
-            if action:
+            if action is not False:
                 # Run each step of the game
                 ended = self.step(action)
             else:
@@ -412,14 +468,15 @@ class Game:
             if ended:
                 if self.save:
                     self.save_data()
+                    print(f"Data saved in {self.data_path}")
 
                 self.reset()
-                print(f"Data saved in {self.data_path}")
 
             # Update the game clock
             fpsClock.tick(FPS)
 
 
 if __name__ == "__main__":
-    # Game(save_dir="data/", start_run=33).run(num_runs=17)
-    Game(save_dir="test/", start_run=101, seed=0).run()
+    # Game(save_dir=None, start_run=201, random_goal=False).run()
+    # Game(save_dir="test/", start_run=101, seed=0).run()
+    Game(num_dog=2).run()
