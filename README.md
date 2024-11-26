@@ -48,6 +48,15 @@ ws
     - The game will be automatically scaled up
     - Saved data images will remain at the original size
 
+# Data Visualization
+Some data visualization tools are included. These are setup to use the same format that the data is saved in
+
+- `visualize_paths.py` will graph the path that the shepherds take
+    - Start of the path is Purple, end of the path is Yellow
+    - Can specify which trial to start and stop at for displaying data
+    - Only supports 1 shepherd as of now
+    [](media/example_paths.png)
+- `visualize_sheep_pos.py` will graph the positions that the sheep and dog spawn in
 
 # Dependencies
 The game has been successfully run in the following environment:
