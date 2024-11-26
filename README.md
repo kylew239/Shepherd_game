@@ -1,6 +1,13 @@
 # Shepherding Pygame
 This repository contains code for playing shephereding game. The goal is the control the shepherd (dog, blue circle) to herd the sheep (white circles) into the target zone (black circle). The game is "won" when the center of mass of the sheep (grey circle with a black border) reaches the goal area. The sheep behave as described by the [Strombom model](https://royalsocietypublishing.org/doi/10.1098/rsif.2014.0719)
 
+# Table of Contents
+1. [Quickstart](README.md#quickstart)
+2. [Features](README.md#features)
+3. [Data Visualization](README.md#data-visualization)
+4. [Dependencies](README.md#dependencies)
+5. [Controller Mapping](README.md#controller-mapping)
+
 
 # Quickstart
 1. Create a `ws` folder and clone this repo into it. Refer to the diagram [in Features](#features)
