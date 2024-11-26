@@ -34,15 +34,16 @@ This game features additional capabilities and parameters that are easy for the 
     - Saves the shepherd position and game state as a bmp in the following format:
 ```
 ws
-├── data                # Contains data for each game run
+├── data                    # Contains data for each game run
 │   └── 1  
-│       └── img         # Contains the image at each frame, as a bmp
+│       └── img             # Contains the image at each frame, as a bmp
 │           └── 0.bmp
 │           └── 1.bmp
 │           └── ...
-│       └── pos.csv     # Contains the shepherd positions, as (x,y) per frame
+│       └── pos.csv         # Contains the shepherd positions per frame
+│       └── sheep_pos.csv   # Contains the sheep positions per frame
 │   └── 2  
-└── Shepherd_game       # this repo
+└── Shepherd_game           # this repo
 ```
 - pygame autoscaling
     - The game will be automatically scaled up
@@ -55,8 +56,11 @@ Some data visualization tools are included. These are setup to use the same form
     - Start of the path is Purple, end of the path is Yellow
     - Can specify which trial to start and stop at for displaying data
     - Only supports 1 shepherd as of now
-    [](media/example_paths.png)
+    ![](media/example_paths.png)
 - `visualize_sheep_pos.py` will graph the positions that the sheep and dog spawn in
+    - Sheep are blue, goals are black
+    - Can specify which trial to start and stop at for displaying data
+    ![](media/example_pos.png)
 
 # Dependencies
 The game has been successfully run in the following environment:

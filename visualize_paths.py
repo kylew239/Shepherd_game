@@ -27,6 +27,8 @@ def main(data_dir: str, start: int = 0, end: int = None):
     dir_list = sorted(os.listdir(data_dir), key=int)
     if end is not None:
         dir_list = dir_list[start:end]
+    else:
+        dir_list = dir_list[start:]
 
     # Draw each path
     for dir in dir_list:
