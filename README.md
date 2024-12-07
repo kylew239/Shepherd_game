@@ -1,6 +1,7 @@
 # Shepherding Pygame
 This repository contains code for playing shephereding game. The goal is the control the shepherd (dog, blue circle) to herd the sheep (white circles) into the target zone (black circle). The game is "won" when the center of mass of the sheep (grey circle with a black border) reaches the goal area. The sheep behave as described by the [Strombom model](https://royalsocietypublishing.org/doi/10.1098/rsif.2014.0719)
 
+
 # Table of Contents
 1. [Quickstart](README.md#quickstart)
 2. [Features](README.md#features)
@@ -16,18 +17,11 @@ This repository contains code for playing shephereding game. The goal is the con
 
 3. Create the `data/` folder in the `ws`
 
-4. Add the package to your python path. You may need to do this everytime you reopen the terminal
-```
-export PYTHONPATH=.:$PYTHONPATH
-
-# OR
-
-export PYTHONPATH=~/ws/:$PYTHONPATH
-```
+4. Install this package `pip install -e shepherd_game/.`. This will setup and install the package, which will allow other programs to use this package by using `import shepherd_game.game`, or similar.
 
 5. OPTIONAL: Setup up your controller. You can also use the arrow keys on a standard keyboard
 
-6. Edit parameters and/or save information. Run the game from `ws` using `python3 shepherd_game/game.py`
+6. Edit parameters and/or save information. Run the game from `ws` using `python3 shepherd_game/shepherd_game/game.py`. You can run the game from other directories, but the directory structure shown below will be different. The `data` directory will be relative to wherever you run the command from
 
 # Features
 This game features additional capabilities and parameters that are easy for the player to tune.
@@ -49,7 +43,9 @@ ws
 │           └── ...
 │       └── pos.csv         # Contains the shepherd positions per frame
 │       └── sheep_pos.csv   # Contains the sheep positions per frame
+│       └── target_pos.csv  # Contains the target position
 │   └── 2  
+│   └── ...
 └── Shepherd_game           # this repo
 ```
 - pygame autoscaling

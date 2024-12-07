@@ -66,7 +66,6 @@ class Game:
                                         SCALED)
 
         self.save = True if save_dir is not None else False
-        self.dir = save_dir
         self.trial = 0 if not start_run else start_run
         self.seed = seed
         self.random_goal = random_goal
@@ -75,6 +74,10 @@ class Game:
         self.num_agents = num_sheep
         self.num_nearest = self.num_agents-1
         self.num_dog = num_dog
+        self.dir = save_dir
+        if save_dir is not None:
+            if not os.path.exists(self.dir):
+                os.mkdir(self.dir)
 
         self.display_time = display_time
         self.reset()
@@ -99,7 +102,7 @@ class Game:
         else:
             # Randomly place the sheep anywhere
             self.sheep = np.random.rand(self.num_agents, 2)*FIELD_LENGTH
-        self.CoM = np.mean(self.sheep, axis=0)
+        CoM = np.mean(self.sheep, axis=0)
         np.random.seed(None)  # Reset the seed
 
         # Place the target
@@ -107,7 +110,7 @@ class Game:
             # Randomize but make sure the game isn't "won"
             self.target = np.random.rand(2)*FIELD_LENGTH/2
             self.target[1] += FIELD_LENGTH/2
-            while dist(self.CoM, self.target) < TARGET_RADIUS:
+            while dist(CoM, self.target) < TARGET_RADIUS:
                 self.target = np.random.rand(2)*FIELD_LENGTH
         else:
             # Bottom left corner
@@ -136,6 +139,7 @@ class Game:
         Args:
             direction (List): Movement direction of the dog
         """
+        assert direction.shape == self.dog.shape, "Wrong number of actions"
         next_heading = np.zeros_like(self.heading)
 
         # Iterate for each dog
@@ -211,19 +215,18 @@ class Game:
             self.sheep = self.sheep.clip(0, FIELD_LENGTH-1)
 
         # Record positions and save frame
-        self.CoM = np.mean(self.sheep, axis=0)
-        dist_to_goal = dist(self.CoM, self.target)
-        self.pos.append([*self.dog, *direction, *self.CoM,
-                        dist_to_goal, *self.target])
-        self.sheep_pos.append([pos for sheep in self.sheep for pos in sheep])
         if self.save:
+            self.pos.append([pos for dog in self.dog for pos in dog])
+            self.sheep_pos.append(
+                [pos for sheep in self.sheep for pos in sheep])
             self.img_list.append(pygame.surfarray.array3d(self.screen))
 
-        # End game if CoM of sheep is within the target
-        if dist_to_goal < TARGET_RADIUS:
-            return True
+        for sheep in self.sheep:
+            if dist(sheep, self.target) > TARGET_RADIUS:
+                return False
 
-        return False
+        # End game if all the sheep are inside the target radius
+        return True
 
     def get_joy_input(self):
         """Key key inputs for game controls using joystick."""
@@ -444,6 +447,11 @@ class Game:
             for i in range(1, len(self.sheep_pos)):
                 writer.writerow(np.round(self.sheep_pos[i], 3))
 
+        # Save the target
+        with open(self.data_path + 'target_pos.csv', 'w') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(self.target)
+
         for idx, pix_array in enumerate(self.img_list):
             img = pygame.surfarray.make_surface(pix_array)
             pygame.image.save(img, self.img_path+f"{idx+1}.bmp")
@@ -478,5 +486,5 @@ class Game:
 
 if __name__ == "__main__":
     # Game(save_dir=None, start_run=201, random_goal=False).run()
-    # Game(save_dir="test/", start_run=101, seed=0).run()
+    # Game(save_dir="data/", start_run=1001, seed=0).run()
     Game(num_dog=2).run()
