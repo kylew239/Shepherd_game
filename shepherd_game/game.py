@@ -29,7 +29,8 @@ class Game:
                  start_in_goal: bool = True,
                  sheep_top_right: bool = True,
                  num_dog: int = 1,
-                 num_sheep: int = 5):
+                 num_sheep: int = 5,
+                 scaling: int = 5):
         """
         Create a shepherding game instance.
 
@@ -48,6 +49,7 @@ class Game:
                 False, the sheep can spawn anywhere. Defaults to True
             num_dog (int): The number of dogs to spawn. Defaults to 1
             num_agents (int): The number of sheep to spawn. Defaults to 5
+            scaling (int): Scaling factor for the pygame display. Defaults to 5
         """
         pygame.init()
         self.padding = np.array(PADDING)
@@ -60,10 +62,12 @@ class Game:
             self.get_input = self.get_keyboard_input
 
         if RENDER:
+            self.scale = scaling
+            x_size = FIELD_LENGTH+2*self.padding[0]
+            y_size = FIELD_LENGTH+2*self.padding[1]
             self.screen =\
-                pygame.display.set_mode((FIELD_LENGTH+2*self.padding[0],
-                                         FIELD_LENGTH+2*self.padding[1]),
-                                        SCALED)
+                pygame.display.set_mode((x_size * self.scale,
+                                         y_size * self.scale))
 
         self.save = True if save_dir is not None else False
         self.trial = 0 if not start_run else start_run
@@ -131,6 +135,9 @@ class Game:
 
         # Heading arrays for sheep movement
         self.heading = np.zeros_like(self.sheep)
+
+        self.dog_dir = np.zeros_like(self.dog)
+        self.sheep_dir = np.zeros_like(self.sheep)
 
     def step(self, direction):
         """
@@ -200,6 +207,8 @@ class Game:
 
                     # Update heading to include previous headings
                     next_heading[i] = next_heading[i] + P_H*self.heading[i]
+
+                    self.sheep_dir[i] = next_heading[i]
 
         # Update sheep location with obstacle clipping
         for idx in range(self.num_agents):
@@ -375,17 +384,27 @@ class Game:
         self.screen.fill((19, 133, 16))
 
         # Target
-        pygame.draw.circle(self.screen, BLACK, tuple(
-            self.padding + self.target), TARGET_RADIUS, 0)
+        target_loc = (self.padding + self.target) * self.scale
+        pygame.draw.circle(self.screen, BLACK, target_loc,
+                           TARGET_RADIUS * self.scale, 0)
 
         # Dog
-        [pygame.draw.circle(self.screen, (25, 25, 255), tuple(
-            self.padding + pos), 1, 0) for pos in self.dog]
+        for idx, each in enumerate(self.dog):
+            pos = (self.padding + each) * self.scale
+            head = self.dog_dir[idx] * self.scale + pos
+            pygame.draw.circle(self.screen, (25, 25, 255),
+                               pos, self.scale + 2, 0)
+            pygame.draw.polygon(self.screen, (25, 25, 255),
+                                triangle(pos, head, self.scale+2))
 
         # Sheep
-        [pygame.draw.circle(self.screen, WHITE,
-                            tuple(self.padding + pos), 1, 0)
-            for pos in self.sheep]
+        for idx, each in enumerate(self.sheep):
+            pos = (self.padding + each) * self.scale
+            head = self.sheep_dir[idx] * self.scale + pos
+            pygame.draw.circle(self.screen, WHITE,
+                               pos, self.scale + 2, 0)
+            pygame.draw.polygon(self.screen, WHITE,
+                                triangle(pos, head, self.scale+2))
 
         # Draw obstacles
         for circle in obstacles.circles:
@@ -468,6 +487,10 @@ class Game:
             if action is not False:
                 # Run each step of the game
                 ended = self.step(action)
+
+                for idx in range(action.shape[0]):
+                    if dist(action[idx]) > 0.1:
+                        self.dog_dir[idx] = action[idx]
             else:
                 # Close the game
                 break
@@ -487,4 +510,4 @@ class Game:
 if __name__ == "__main__":
     # Game(save_dir=None, start_run=201, random_goal=False).run()
     # Game(save_dir="data/", start_run=1001, seed=0).run()
-    Game(num_dog=2).run()
+    Game(num_dog=1, num_sheep=1).run()
